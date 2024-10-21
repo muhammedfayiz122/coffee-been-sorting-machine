@@ -20,16 +20,24 @@ if not os.path.exists(image_dir):
     # Iterate over the dataset from hugging face library and save images and labels in local
     for i, item in enumerate(ds['train']):
         image = item['image']
-        image.save(f'datasets/data/images/{i}.jpg')  # Save the image
+        image_path = f'{image_dir}/{i}.jpg'
+        label_path = f'{label_dir}/{i}.txt'
 
-        # Assuming you have bounding box annotations (you'll need to modify this part if your dataset has different annotations)
-        with open(f'datasets/data/labels/{i}.txt', 'w') as f:
-            # You can adjust the following lines based on your dataset's label format
-            class_id = item['label']  # Using 'label' as class id for now
-            # In YOLO format, annotations need to be in [class_id, x_center, y_center, width, height] normalized format.
-            # You'll need to generate these values if available.
-            f.write(f'{class_id} 0.5 0.5 1.0 1.0\n')  # Placeholder annotation
+        # Save the image if it doesn't already exist
+        if not os.path.exists(image_path):
+            image.save(image_path)  # Save the image
+        else:
+            print(f"Image {i}.jpg already exists, skipping download.")
 
+        # Save the label if it doesn't already exist
+        if not os.path.exists(label_path):
+            with open(label_path, 'w') as f:
+                class_id = item['label']  # Using 'label' as class id for now
+                # Placeholder annotation in YOLO format
+                f.write(f'{class_id} 0.5 0.5 1.0 1.0\n')
+        else:
+            print(f"Label {i}.txt already exists, skipping label creation.")
+            
 #loading model
 model = YOLO("yolo11n.pt")
 

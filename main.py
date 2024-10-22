@@ -3,6 +3,8 @@ import os
 import pandas as pd
 from ultralytics import YOLO
 
+
+
 # Path for the dataset
 image_dir = 'datasets/data/images'
 label_dir = 'datasets/data/labels'
@@ -37,7 +39,9 @@ if not os.path.exists(image_dir):
                 f.write(f'{class_id} 0.5 0.5 1.0 1.0\n')
         else:
             print(f"Label {i}.txt already exists, skipping label creation.")
-            
+else:
+    print("Dataset already exists locally. Skipping download and file creation.")
+
 #loading model
 model = YOLO("yolo11n.pt")
 

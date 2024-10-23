@@ -21,7 +21,7 @@ def main():
         output = predict_coffee(model_path, test_file)
     except Exception as e:
         print(f"an error occured : {e}")
-
+    output.show()
     print(output)
 
 if __name__ == "__main__":

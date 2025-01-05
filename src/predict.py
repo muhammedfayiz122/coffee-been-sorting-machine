@@ -1,4 +1,5 @@
-from ultralytics import YOLO
+# from ultralytics import YOLO
+from YOLOv5 import YOLO
 
 def predict_coffee(model_path, test_file):
     # Load the trained model
@@ -23,16 +24,17 @@ def predict_coffee(model_path, test_file):
     return results
 
 def main():
-    model_path = "../models/best.pt"
+    model_path = "../models/sahad_best.pt"
     test_file = "../test/1397.jpg"
     try:
         output = predict_coffee(model_path, test_file)
+    # except Exception as e:
+    #     try:
+    #         print("Taking alternative path")
+    #         model_path = "models/sahad_best.pt"
+    #         test_file = "test/1397.jpg"
+    #         output = predict_coffee(model_path, test_file)
     except Exception as e:
-        try:
-            model_path = "models/best.pt"
-            test_file = "test/1397.jpg"
-            output = predict_coffee(model_path, test_file)
-        except Exception as e:
             print(f"an error occured : {e}")
     # output.show()
     # print(output)

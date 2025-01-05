@@ -7,6 +7,14 @@ def predict_coffee(model_path, test_file):
     # Predict on a new image
     results = model.predict(test_file, imgsz=640)
 
+
+    for result in results:
+        boxes = result.boxes  # Bounding boxes
+        print(f"dimension is : {boxes.xywh}")
+        # labels = result.names  # Class names
+        # confidences = result.conf  # Confidence scores
+        result.show()
+
     # # Visualize the result
     # results.show()
 
@@ -21,8 +29,8 @@ def main():
         output = predict_coffee(model_path, test_file)
     except Exception as e:
         print(f"an error occured : {e}")
-    output.show()
-    print(output)
+    # output.show()
+    # print(output)
 
 if __name__ == "__main__":
     main()

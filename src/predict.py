@@ -28,7 +28,12 @@ def main():
     try:
         output = predict_coffee(model_path, test_file)
     except Exception as e:
-        print(f"an error occured : {e}")
+        try:
+            model_path = "models/best.pt"
+            test_file = "test/1397.jpg"
+            output = predict_coffee(model_path, test_file)
+        except Exception as e:
+            print(f"an error occured : {e}")
     # output.show()
     # print(output)
 

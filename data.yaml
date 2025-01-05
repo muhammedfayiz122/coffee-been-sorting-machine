@@ -1,0 +1,5 @@
+train: yolo_dataset/images/train  # Path to training images
+val: yolo_dataset/images/val      # Path to validation images
+
+nc: 4                                       # Number of classes (4 in your case)
+names: ['dark', 'green', 'light', 'medium']  # Replace with the actual class names

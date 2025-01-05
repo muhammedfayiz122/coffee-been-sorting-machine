@@ -1,0 +1,10 @@
+torch==2.5.1
+matplotlib
+opencv-python
+jupyter
+numpy
+pillow
+yolov5
+requests
+
+

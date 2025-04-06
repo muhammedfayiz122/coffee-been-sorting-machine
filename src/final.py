@@ -64,7 +64,7 @@ logging.info("Serial communication with Arduino initialized successfully.")
 
 # Load YOLO model (replace 'best11.pt' with your trained model if needed)
 print("loading model...")
-model = YOLO("best11.pt")
+model = YOLO("../models/best11.pt")
 print("model loaded successfully")
 logging.info("YOLO model loaded successfully.")
 

@@ -1,0 +1,6 @@
+train: images  # Path to training images
+val: images    # Path to validation images
+
+nc: 3  # Number of classes
+names: ['coffee_1', 'coffee_2', 'coffee_3']  # Adjust based on your dataset
+

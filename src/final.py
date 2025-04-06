@@ -11,6 +11,17 @@ coffee_beans_class = {
     2: "medium"
 }
 
+def get_adjusted_angle(x, y):
+    if 110 <= x <= 270:
+        return 0
+    else:
+        angle = -1 * (x - 200) / 5
+        logging.info(f"Calculated angle: {angle} for x: {x}, y: {y}")
+        if angle < 0:
+            return max(-45, angle)  # Limit angle to a minimum of -30 degrees
+        else:
+            return min(angle, 45)  # Limit angle to a maximum of 30 degrees
+
 def retry_arduino_connection():
     """Retries Arduino connection in case of an error."""
     print("Retrying Arduino connection...")
@@ -22,7 +33,7 @@ def retry_arduino_connection():
     i=0
     while not arduino:
         try:
-            arduino = serial.Serial('COM5', 9600, timeout=1)
+            arduino = serial.Serial('COM7', 9600, timeout=1)
             send_to_arduino("START")
         except:
             i+=1
@@ -53,7 +64,7 @@ print("Process starting...")
 logging.info("Initializing serial communication with Arduino...")
 arduino = None
 try:
-    arduino = serial.Serial('COM5', 9600, timeout=1)
+    arduino = serial.Serial('COM7', 9600, timeout=1)
     send_to_arduino("START")
 except:
     retry_arduino_connection()  # Retry connection if error occurs
@@ -95,7 +106,7 @@ def classify_bean(image_path):
     print(f"darkest value : {darkest}")
     if darkest > 120:
         print("lowest dark value , skipping")
-        return None
+        return None, 0
     results = model(img, conf=0.6)
     detected_classes = [result.boxes.cls.tolist() for result in results]
     if detected_classes and len(detected_classes[0]) > 0:
@@ -139,15 +150,21 @@ def classify_bean(image_path):
         # Use a larger font scale and thicker line for bold text
         cv2.putText(img, str(bean_class), (x1, y1 - 10), cv2.FONT_HERSHEY_SIMPLEX, 2.0, (0, 255, 0), 4)
         cv2.putText(img, f"X:{mid_x} Y:{mid_y}", (x1, y1 - 15), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (255, 0, 0), 2)
+
+        try:
+            angle = get_adjusted_angle(mid_x, mid_y)
+        except Exception as e:
+            print(f"Error calculating angle: {e}")
+            angle = 0
         
         # Annotate the middle point coordinates on the image
         cv2.putText(img, f"x", (mid_x + 10, mid_y - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (255, 0, 0), 2)
         cv2.imwrite(annotated_image_path, img)
         logging.info(f"Annotated image saved successfully for class : {bean_class}")
 
-        return bean_class
+        return bean_class, angle
     else:
-        return None  # No detection
+        return None, 0  # No detection
 
 def read_from_arduino():
     """Reads data from Arduino."""
@@ -205,7 +222,6 @@ def intialize_arduino():
     
 
 def main():
-
     if intialize_arduino():
         logging.info("Received READY signal from Arduino. Starting sorting process...")
         print("Arduino is ready. Starting sorting process...")
@@ -233,23 +249,35 @@ def main():
                 print("Stepper motor stopped, capturing image...")
                 attempts = 0
                 bean_class = None
+                angle = 0
                 while attempts < 2 and bean_class is None:
                     image_path = capture_image()
                     if not image_path:
                         print("Error capturing image, skipping. <continue>")
                         # send_to_arduino("STEP")
                         continue
-                    bean_class = classify_bean(image_path)  # YOLO classification
+                    try:
+                        bean_class, angle = classify_bean(image_path)  # YOLO classification
+                    except Exception as e:
+                        print(f"Error during classification: {e}")
+                        logging.error(f"Error during classification: {e}")
+                        bean_class = None
                     if bean_class is None:
                         print(f"Attempt {attempts + 1} failed, retrying...")
                     attempts += 1
+                    if angle != 0:
+                        print(f"Angle for stepper motor: {angle}")
+                        send_to_arduino(str(angle))
+                        logging.info(f"Angle sent to Arduino: {angle}")
+                        time.sleep(1)  # Allow time for Arduino to process the angle
+                
                     send_to_arduino(str(current_bean))
                     logging.info(f"sented to arduino : {bean_class}")
                     if bean_class is None:
                         print("Failed to detect bean class after 2 attempts, skipping.")
                         send_to_arduino("STEP")
                         print("Arduino is ready for the next step.")
-                        time.sleep(0.3)
+                        time.sleep(0.9)
                         attempts = 0
                         current_bean = 1
                         continue
@@ -266,7 +294,7 @@ def main():
                     logging.info("Rotating stepper motor...") 
 
                     send_to_arduino("STEP")
-                    time.sleep(1)
+                    time.sleep(0.9)
                     print("-" * 60)
                     print("\n" * 1)
             else:

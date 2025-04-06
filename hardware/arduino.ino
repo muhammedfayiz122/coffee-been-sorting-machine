@@ -96,6 +96,7 @@ void processCommand(const String &cmd) {
   else if (cmd == "-") {
     stepper.step(-1 * stepsPerRevolution / 18);
   }
+  else if (cmd ==)
   else {
     Serial.print("Unrecognized command: ");
     Serial.println(cmd);

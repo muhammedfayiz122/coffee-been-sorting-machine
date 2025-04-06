@@ -7,3 +7,7 @@ __pycache__
 notebooks/.ipynb_checkpoints
 *.ipynb_checkpoints
 processed_images
+src/processed_images
+src/darkest_point
+src/newly_annotated
+src/boxes

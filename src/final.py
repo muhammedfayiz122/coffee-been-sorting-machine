@@ -5,7 +5,6 @@ from ultralytics import YOLO
 from utils.logger import logging
 import os
 from preprocess import detect_and_annotate_darkest_box
-
 coffee_beans_class = {
     0: "dark",
     1: "light",
@@ -73,7 +72,7 @@ def capture_image():
     print("Capturing image from phone...")
     logging.info("Capturing image from phone...")
     # Uncomment below to use an actual video feed
-    cap = cv2.VideoCapture('http://192.168.1.101:8080/video', cv2.CAP_FFMPEG)
+    cap = cv2.VideoCapture('http://192.168.1.11:8080/video', cv2.CAP_FFMPEG)
     ret, frame = cap.read()
     if ret:
         logging.info("Image captured successfully.")
@@ -117,17 +116,19 @@ def classify_bean(image_path):
         # cv2.putText(img, str(bean_class), (x1, y1 - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.9, (0, 255, 0), 2)
 
         # Save the annotated image (it will be saved with a new filename)
-        annotated_folder = "../processed_images/newly_annotated"
+        # annotated_folder = "../processed_images/newly_annotated"
+        annotated_folder = "processed_images/newly_annotated"
+
         annotated_folder = os.path.abspath(annotated_folder)  # Resolve to absolute path
         if not os.path.exists(annotated_folder):
-            exit()
             os.makedirs(annotated_folder)
         # Create unique file names for annotated image and cropped box image using current timestamp
         timestamp = int(time.time() * 1000)
         annotated_image_path = os.path.join(annotated_folder, f"annotated_{timestamp}.jpg")
         
         # Save detected bounding box as a separate cropped image in a different folder
-        boxes_folder = "../processed_images/boxes"
+        # boxes_folder = "../processed_images/boxes"
+        boxes_folder = "processed_images/boxes"
         if not os.path.exists(boxes_folder):
             os.makedirs(boxes_folder)
         cropped_image = img[y1:y2, x1:x2]
@@ -265,7 +266,7 @@ def main():
                     logging.info("Rotating stepper motor...") 
 
                     send_to_arduino("STEP")
-                    time.sleep(0.5)
+                    time.sleep(1)
                     print("-" * 60)
                     print("\n" * 1)
             else:

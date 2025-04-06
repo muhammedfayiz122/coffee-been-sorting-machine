@@ -3,7 +3,7 @@ import numpy as np
 import os
 import datetime
 
-def detect_and_annotate_darkest_box(frame, save_folder="../processed_images/darkest_point", box_size=(30, 30)):
+def detect_and_annotate_darkest_box(frame, save_folder="processed_images/darkest_point", box_size=(30, 30)):
     """
     Detects the darkest region in an image using a sliding window approach with a larger box size.
     

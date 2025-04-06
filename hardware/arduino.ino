@@ -125,7 +125,7 @@ void setup() {
   }
   
   // Wait for the "START" command from the Python script
-  Serial.println("Waiting for 'START' signal...");
+  Serial.println("Waiting for 'START' signal...");ZZZZZZZZ
   while (systemState == WAITING_FOR_START) {
     // Serial.println(systemState);
     Serial.println("Waiting for 'START' signal...");

@@ -11,3 +11,4 @@ src/processed_images
 src/darkest_point
 src/newly_annotated
 src/boxes
+src/coffee_beans_classification.log

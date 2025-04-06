@@ -6,3 +6,4 @@ __pycache__
 *.pyd
 notebooks/.ipynb_checkpoints
 *.ipynb_checkpoints
+processed_images

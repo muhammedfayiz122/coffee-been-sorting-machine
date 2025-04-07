@@ -318,9 +318,7 @@ def main():
             if bean_class is not None:
                 log_bean_to_csv(
                     bean_id=sorted_count,
-                    detected_class=bean_class,
-                    confidence=confidence_score,
-                    time_taken=time_taken
+                    detected_class=bean_class
                 )
 
     except KeyboardInterrupt:

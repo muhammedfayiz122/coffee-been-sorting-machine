@@ -34,7 +34,7 @@ coffee_beans_class = {
 }
 
 def get_adjusted_angle(x, y):
-    if 110 <= x <= 270:
+    if 150 <= x <= 270:
         return 0
     else:
         angle = -1 * (x - 220) / 6
@@ -282,10 +282,11 @@ def main():
             attempts += 1
 
             if angle != 0:
+                # angle = int(angle)  # Convert to integer for Arduino
                 print(f"Angle for stepper motor: {angle}")
                 send_to_arduino(str(angle))
                 logging.info(f"Angle sent to Arduino: {angle}")
-                time.sleep(1)  # Allow time for Arduino to process the angle
+                # time.sleep(1)  # Allow time for Arduino to process the angle
         
             send_to_arduino(str(current_bean))
             logging.info(f"sented to arduino : {bean_class}")
@@ -296,6 +297,7 @@ def main():
                 print("Arduino is ready for the next step.")
                 time.sleep(0.9)
                 attempts = 0
+                current_bean = 1
                 logging.info("Failed to detect bean class after 2 attempts, skipping.")
                 continue
             elif bean_class is not None:
@@ -313,12 +315,13 @@ def main():
             time_taken = end_time - start_time
 
             # Log every bean whether detected or not
-            log_bean_to_csv(
-                bean_id=total_count,
-                detected_class=bean_class,
-                confidence=confidence_score,
-                time_taken=time_taken
-            )
+            if bean_class is not None:
+                log_bean_to_csv(
+                    bean_id=sorted_count,
+                    detected_class=bean_class,
+                    confidence=confidence_score,
+                    time_taken=time_taken
+                )
 
     except KeyboardInterrupt:
         print("Terminating...")

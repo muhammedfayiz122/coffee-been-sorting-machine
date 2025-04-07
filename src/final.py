@@ -5,6 +5,28 @@ from ultralytics import YOLO
 from utils.logger import logging
 import os
 from preprocess import detect_and_annotate_darkest_box
+import csv
+from datetime import datetime
+
+CSV_FILE = "bean_log.csv"
+
+# Initialize CSV file with headers (only if not already exists)
+try:
+    if not os.path.exists(CSV_FILE):
+        with open(CSV_FILE, mode='w', newline='') as file:
+            writer = csv.writer(file)
+            writer.writerow(["Timestamp", "Bean ID", "Detected Class", "Confidence", "Time Taken (s)"])
+except Exception as e:
+    print(f"Error initializing CSV file: {e}")
+    logging.error(f"Error initializing CSV file: {e}")
+
+# Load YOLO model (replace 'best11.pt' with your trained model if needed)
+print("loading model...")
+model = YOLO("../models/best11.pt")
+print("model loaded successfully")
+logging.info("YOLO model loaded successfully.")
+
+
 coffee_beans_class = {
     0: "dark",
     1: "light",
@@ -12,15 +34,15 @@ coffee_beans_class = {
 }
 
 def get_adjusted_angle(x, y):
-    if 110 <= x <= 270:
+    if 150 <= x <= 270:
         return 0
     else:
-        angle = -1 * (x - 200) / 5
+        angle = -1 * (x - 220) / 6
         logging.info(f"Calculated angle: {angle} for x: {x}, y: {y}")
         if angle < 0:
-            return max(-45, angle)  # Limit angle to a minimum of -30 degrees
+            return max(-30, angle)  # Limit angle to a minimum of -30 degrees
         else:
-            return min(angle, 45)  # Limit angle to a maximum of 30 degrees
+            return min(angle, 30)  # Limit angle to a maximum of 30 degrees
 
 def retry_arduino_connection():
     """Retries Arduino connection in case of an error."""
@@ -42,11 +64,11 @@ def retry_arduino_connection():
     print("Reconnected to Arduino successfully.")
     return arduino
     
-
 def send_to_arduino(command):
     """Sends data to Arduino, appending a newline for proper termination."""
     full_command = command + "\n"
     try:
+        global arduino
         arduino.write(full_command.encode('utf-8'))
         # Minimal delay to allow Arduino to process the command
     except Exception as e:
@@ -58,30 +80,9 @@ def send_to_arduino(command):
         except Exception as e:
             print(f"Error reinitializing Arduino: {e}")
 
-
-print("Process starting...")
-# Initialize serial communication with a higher baud rate (if desired)
-logging.info("Initializing serial communication with Arduino...")
-arduino = None
-try:
-    arduino = serial.Serial('COM7', 9600, timeout=1)
-    send_to_arduino("START")
-except:
-    retry_arduino_connection()  # Retry connection if error occurs
-time.sleep(1)  # Allow Arduino to initialize
-print("arduino opened successfully")
-logging.info("Serial communication with Arduino initialized successfully.")
-
-# Load YOLO model (replace 'best11.pt' with your trained model if needed)
-print("loading model...")
-model = YOLO("../models/best11.pt")
-print("model loaded successfully")
-logging.info("YOLO model loaded successfully.")
-
 def capture_image():
     """Captures an image and saves it."""
     print("Capturing image from phone...")
-    logging.info("Capturing image from phone...")
     # Uncomment below to use an actual video feed
     cap = cv2.VideoCapture('http://192.168.1.11:8080/video', cv2.CAP_FFMPEG)
     ret, frame = cap.read()
@@ -166,6 +167,17 @@ def classify_bean(image_path):
     else:
         return None, 0  # No detection
 
+def log_bean_to_csv(bean_id, detected_class, confidence, time_taken):
+    with open(CSV_FILE, mode='a', newline='') as file:
+        writer = csv.writer(file)
+        writer.writerow([
+            datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+            bean_id,
+            detected_class if detected_class is not None else "Not Detected",
+            f"{confidence:.2f}" if confidence is not None else "N/A",
+            f"{time_taken:.2f}"
+        ])
+
 def read_from_arduino():
     """Reads data from Arduino."""
     try:
@@ -220,85 +232,96 @@ def intialize_arduino():
         return False
     return True
     
-
 def main():
+    # Initialize serial communication with a higher baud rate (if desired)
+    global arduino
+    logging.info("Initializing serial communication with Arduino...")
+    arduino = None
+    try:
+        arduino = serial.Serial('COM7', 9600, timeout=1)
+        send_to_arduino("START")
+    except:
+        retry_arduino_connection()  # Retry connection if error occurs
+    time.sleep(1)  # Allow Arduino to initialize
+    print("arduino opened successfully")
+    logging.info("Serial communication with Arduino initialized successfully.")
+
     if intialize_arduino():
         logging.info("Received READY signal from Arduino. Starting sorting process...")
         print("Arduino is ready. Starting sorting process...")
 
     try:
-        current_bean = 1
+        current_bean, attempts, sorted_count, confidence_score = 1, 0, 0, 0
+        total_count = 0
+        logging.info("\n"*2 + "#"*60 + "#" + " "*15 + "Starting sorting process..." + " "*15 + "#" + "#" * 60)
         while True:
+            total_count += 1 #remove if unnecessesery
+            start_time = time.time()
             try:
                 sorted_count
             except NameError:
                 sorted_count = 0
-            # If a bean was successfully classified in the previous cycle, update the counter.
-            # (Assumes bean_class was set earlier in the loop; reset it after counting.)
-            bean_class_value = locals().get('bean_class', None)
-            if bean_class_value is not None:
-                sorted_count += 1
-                logging.info(f"Total beans sorted so far: {sorted_count}")
+
+            logging.info("-"*60 + f"\nTotal beans sorted so far: {sorted_count}")
+            print("-" * 60 + "\nStepper motor stopped, capturing image...")
+            bean_class, angle = None, 0
+            image_path = capture_image()
+
+            if not image_path:
+                print("Error capturing image, skipping. <continue>")
+                continue
+            try:
+                bean_class, angle = classify_bean(image_path)  # YOLO classification
+            except Exception as e:
+                print(f"Error during classification: {e}")
+                logging.error(f"Error during classification: {e}")
                 bean_class = None
-            logging.info("-" * 60)
-            # Wait for Arduino's stepper motor completion signal
-            arduino_response = read_from_arduino()
-            if arduino_response == "READY":
-                print("-" * 60)
+
+            if bean_class is None:
+                print(f"Attempt {attempts + 1} failed, retrying...")
+            attempts += 1
+
+            if angle != 0:
+                # angle = int(angle)  # Convert to integer for Arduino
+                print(f"Angle for stepper motor: {angle}")
+                send_to_arduino(str(angle))
+                logging.info(f"Angle sent to Arduino: {angle}")
+                time.sleep(1)  # Allow time for Arduino to process the angle
+        
+            send_to_arduino(str(current_bean))
+            logging.info(f"sented to arduino : {bean_class}")
+
+            if bean_class is None and attempts >= 2:
+                print("Failed to detect bean class after 2 attempts, skipping.")
+                send_to_arduino("STEP")
                 print("Arduino is ready for the next step.")
-                print("Stepper motor stopped, capturing image...")
+                time.sleep(0.9)
                 attempts = 0
-                bean_class = None
-                angle = 0
-                while attempts < 2 and bean_class is None:
-                    image_path = capture_image()
-                    if not image_path:
-                        print("Error capturing image, skipping. <continue>")
-                        # send_to_arduino("STEP")
-                        continue
-                    try:
-                        bean_class, angle = classify_bean(image_path)  # YOLO classification
-                    except Exception as e:
-                        print(f"Error during classification: {e}")
-                        logging.error(f"Error during classification: {e}")
-                        bean_class = None
-                    if bean_class is None:
-                        print(f"Attempt {attempts + 1} failed, retrying...")
-                    attempts += 1
-                    if angle != 0:
-                        print(f"Angle for stepper motor: {angle}")
-                        send_to_arduino(str(angle))
-                        logging.info(f"Angle sent to Arduino: {angle}")
-                        time.sleep(1)  # Allow time for Arduino to process the angle
-                
-                    send_to_arduino(str(current_bean))
-                    logging.info(f"sented to arduino : {bean_class}")
-                    if bean_class is None:
-                        print("Failed to detect bean class after 2 attempts, skipping.")
-                        send_to_arduino("STEP")
-                        print("Arduino is ready for the next step.")
-                        time.sleep(0.9)
-                        attempts = 0
-                        current_bean = 1
-                        continue
+                current_bean = 1
+                logging.info("Failed to detect bean class after 2 attempts, skipping.")
+                continue
+            elif bean_class is not None:
+                sorted_count += 1
+                print(f"Detected Class: {bean_class}")
+                logging.info(f"current bean = {bean_class} && previous bean = {current_bean}")
+                current_bean = bean_class
 
+            # In both cases, command the Arduino to rotate the stepper
+            logging.info("Rotating stepper motor...") 
+            send_to_arduino("STEP")
+            time.sleep(0.9)
+            print("-"*60 + "\n"*1)
+            end_time = time.time()
+            time_taken = end_time - start_time
 
-                        logging.info("Failed to detect bean class after 2 attempts, skipping.")
-                        current_bean = 1
-                        #if no class detected , skipping whole process
-                    else:
-                        print(f"Detected Class: {bean_class}")
-                        logging.info(f"current bean = {bean_class} && previous bean = {current_bean}")
-                        current_bean = bean_class
-                    # In both cases, command the Arduino to rotate the stepper
-                    logging.info("Rotating stepper motor...") 
+            # Log every bean whether detected or not
+            log_bean_to_csv(
+                bean_id=total_count,
+                detected_class=bean_class,
+                confidence=confidence_score,
+                time_taken=time_taken
+            )
 
-                    send_to_arduino("STEP")
-                    time.sleep(0.9)
-                    print("-" * 60)
-                    print("\n" * 1)
-            else:
-                time.sleep(0.1)  # Short delay if no response received
     except KeyboardInterrupt:
         print("Terminating...")
         send_to_arduino("STOP")  # Send stop signal to Arduino
